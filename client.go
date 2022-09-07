@@ -2,91 +2,103 @@ package gadb
 
 import (
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
 )
 
-const AdbServerPort = 5037
-const AdbDaemonPort = 5555
+const (
+	// AdbServerPort is the default port for the adb server
+	AdbServerPort = 5037
 
+	// AdbDaemonPort is the default port for the adb daemon
+	AdbDaemonPort = 5555
+)
+
+// Client contains the information needed to communicate with the adb server
 type Client struct {
 	host string
 	port int
 }
 
+// NewClient creates a new adb client
 func NewClient() (Client, error) {
-	return NewClientWith("localhost")
+	return NewClientWithHost("localhost")
 }
 
-func NewClientWith(host string, port ...int) (adbClient Client, err error) {
-	if len(port) == 0 {
-		port = []int{AdbServerPort}
-	}
-	adbClient.host = host
-	adbClient.port = port[0]
+// NewClientWithHost creates a new adb client with the specified host
+func NewClientWithHost(host string) (Client, error) {
+	return NewClientWithHostAndPort(host, AdbServerPort)
+}
 
-	var tp transport
-	if tp, err = adbClient.createTransport(); err != nil {
+// NewClientWithHostAndPort creates a new adb client with the specified host and port
+func NewClientWithHostAndPort(host string, port int) (Client, error) {
+	c := Client{
+		host: host,
+		port: port,
+	}
+
+	// Validate that we can communicate with the client
+	tp, err := c.createTransport()
+	if err != nil {
 		return Client{}, err
 	}
-	defer func() { _ = tp.Close() }()
+	tp.Close()
 
-	return
+	return c, nil
 }
 
-func (c Client) ServerVersion() (version int, err error) {
-	var resp string
-	if resp, err = c.executeCommand("host:version"); err != nil {
+// ServerVersion returns the version of the adb server
+func (c Client) Version() (int, error) {
+	resp, err := c.executeCommand("host:version")
+	if err != nil {
 		return 0, err
 	}
 
-	var v int64
-	if v, err = strconv.ParseInt(resp, 16, 64); err != nil {
+	v, err := strconv.ParseInt(resp, 16, 64)
+	if err != nil {
 		return 0, err
 	}
 
-	version = int(v)
-	return
+	return int(v), nil
 }
 
-func (c Client) DeviceSerialList() (serials []string, err error) {
-	var resp string
-	if resp, err = c.executeCommand("host:devices"); err != nil {
-		return
+// SerialList returns a list of serial numbers of all connected devices
+func (c Client) SerialList() ([]string, error) {
+	resp, err := c.executeCommand("host:devices")
+	if err != nil {
+		return nil, err
 	}
 
-	lines := strings.Split(resp, "\n")
-	serials = make([]string, 0, len(lines))
-
-	for i := range lines {
-		fields := strings.Fields(lines[i])
-		if len(fields) < 2 {
+	var serials []string
+	for _, l := range strings.Split(resp, "\n") {
+		f := strings.Fields(l)
+		if len(f) < 2 {
 			continue
 		}
-		serials = append(serials, fields[0])
+		serials = append(serials, f[0])
 	}
-
-	return
+	return serials, nil
 }
 
-func (c Client) DeviceList() (devices []Device, err error) {
-	var resp string
-	if resp, err = c.executeCommand("host:devices-l"); err != nil {
-		return
+// List returns a list of all connected devices
+func (c Client) List() ([]Device, error) {
+	resp, err := c.executeCommand("host:devices-l")
+	if err != nil {
+		return nil, err
 	}
 
-	lines := strings.Split(resp, "\n")
-	devices = make([]Device, 0, len(lines))
-
-	for i := range lines {
-		line := strings.TrimSpace(lines[i])
+	var devices []Device
+	var warnings []string
+	for _, l := range strings.Split(resp, "\n") {
+		line := strings.TrimSpace(l)
 		if line == "" {
 			continue
 		}
 
 		fields := strings.Fields(line)
 		if len(fields) < 5 || len(fields[0]) == 0 {
-			debugLog(fmt.Sprintf("can't parse: %s", line))
+			warnings = append(warnings, fmt.Sprintf("invalid line: %q", line))
 			continue
 		}
 
@@ -100,117 +112,139 @@ func (c Client) DeviceList() (devices []Device, err error) {
 		devices = append(devices, Device{adbClient: c, serial: fields[0], attrs: mapAttrs})
 	}
 
-	return
+	if len(warnings) > 0 {
+		return devices, ErrWarnings(warnings)
+	}
+	return devices, nil
 }
 
+// ForwardList returns a list of all forward connections
 func (c Client) ForwardList() (deviceForward []DeviceForward, err error) {
-	var resp string
-	if resp, err = c.executeCommand("host:list-forward"); err != nil {
+	resp, err := c.executeCommand("host:list-forward")
+	if err != nil {
 		return nil, err
 	}
 
-	lines := strings.Split(resp, "\n")
-	deviceForward = make([]DeviceForward, 0, len(lines))
-
-	for i := range lines {
-		line := strings.TrimSpace(lines[i])
+	var devices []DeviceForward
+	for _, l := range strings.Split(resp, "\n") {
+		line := strings.TrimSpace(l)
 		if line == "" {
 			continue
 		}
+
 		fields := strings.Fields(line)
-		deviceForward = append(deviceForward, DeviceForward{Serial: fields[0], Local: fields[1], Remote: fields[2]})
+		devices = append(devices, DeviceForward{Serial: fields[0], Local: fields[1], Remote: fields[2]})
 	}
 
-	return
+	return devices, nil
 }
 
-func (c Client) ForwardKillAll() (err error) {
-	_, err = c.executeCommand("host:killforward-all", true)
-	return
+// ForwadKillAll kills all forward connections
+func (c Client) ForwardKillAll() error {
+	_, err := c.executeCommand("host:killforward-all", true)
+	return err
 }
 
-func (c Client) Connect(ip string, port ...int) (err error) {
-	if len(port) == 0 {
-		port = []int{AdbDaemonPort}
-	}
+// ConnectHost connects to a device via TCP/IP
+func (c Client) ConnectHost(ip string) error {
+	return c.ConnectHostAndPort(ip, AdbDaemonPort)
+}
 
-	var resp string
-	if resp, err = c.executeCommand(fmt.Sprintf("host:connect:%s:%d", ip, port[0])); err != nil {
+// ConnectHostAndPort connects to a device via TCP/IP and port
+func (c Client) ConnectHostAndPort(ip string, port int) error {
+	resp, err := c.executeCommand("host:connect:" + net.JoinHostPort(ip, fmt.Sprint(port)))
+	if err != nil {
 		return err
 	}
+
 	if !strings.HasPrefix(resp, "connected to") && !strings.HasPrefix(resp, "already connected to") {
 		return fmt.Errorf("adb connect: %s", resp)
 	}
-	return
+	return nil
 }
 
-func (c Client) Disconnect(ip string, port ...int) (err error) {
-	cmd := fmt.Sprintf("host:disconnect:%s", ip)
-	if len(port) != 0 {
-		cmd = fmt.Sprintf("host:disconnect:%s:%d", ip, port[0])
-	}
+// DisconnectHost disconnects from a device via TCP/IP
+func (c Client) DisconnectHost(ip string) error {
+	return c.disconnect(ip)
+}
 
-	var resp string
-	if resp, err = c.executeCommand(cmd); err != nil {
+// DisconnectHostAndPort disconnects from a device via TCP/IP and port
+func (c Client) DisconnectHostAndPort(ip string, port int) error {
+	return c.disconnect(net.JoinHostPort(ip, fmt.Sprint(port)))
+}
+
+func (c Client) disconnect(hostAndPort string) error {
+	resp, err := c.executeCommand("host:disconnect:" + hostAndPort)
+	if err != nil {
 		return err
 	}
+
 	if !strings.HasPrefix(resp, "disconnected") {
 		return fmt.Errorf("adb disconnect: %s", resp)
 	}
-	return
+	return nil
 }
 
-func (c Client) DisconnectAll() (err error) {
-	var resp string
-	if resp, err = c.executeCommand("host:disconnect:"); err != nil {
+// DisconnectAll disconnects from all devices
+func (c Client) DisconnectAll() error {
+	resp, err := c.executeCommand("host:disconnect:")
+	if err != nil {
 		return err
 	}
 
 	if !strings.HasPrefix(resp, "disconnected everything") {
 		return fmt.Errorf("adb disconnect all: %s", resp)
 	}
-	return
+	return nil
 }
 
-func (c Client) KillServer() (err error) {
-	var tp transport
-	if tp, err = c.createTransport(); err != nil {
+// KillServer kills the adb server
+func (c Client) KillServer() error {
+	tp, err := c.createTransport()
+	if err != nil {
 		return err
 	}
-	defer func() { _ = tp.Close() }()
+	defer tp.Close()
 
 	err = tp.Send("host:kill")
-	return
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c Client) createTransport() (tp transport, err error) {
-	return newTransport(fmt.Sprintf("%s:%d", c.host, c.port))
+	return newTransport(net.JoinHostPort(c.host, fmt.Sprint(c.port)))
 }
 
-func (c Client) executeCommand(command string, onlyVerifyResponse ...bool) (resp string, err error) {
+func (c Client) executeCommand(command string, onlyVerifyResponse ...bool) (string, error) {
 	if len(onlyVerifyResponse) == 0 {
 		onlyVerifyResponse = []bool{false}
 	}
 
-	var tp transport
-	if tp, err = c.createTransport(); err != nil {
+	tp, err := c.createTransport()
+	if err != nil {
 		return "", err
 	}
-	defer func() { _ = tp.Close() }()
+	defer tp.Close()
 
-	if err = tp.Send(command); err != nil {
+	err = tp.Send(command)
+	if err != nil {
 		return "", err
 	}
-	if err = tp.VerifyResponse(); err != nil {
+
+	err = tp.VerifyResponse()
+	if err != nil {
 		return "", err
 	}
 
 	if onlyVerifyResponse[0] {
-		return
+		return "", nil
 	}
 
-	if resp, err = tp.UnpackString(); err != nil {
+	resp, err := tp.UnpackString()
+	if err != nil {
 		return "", err
 	}
-	return
+	return resp, nil
 }

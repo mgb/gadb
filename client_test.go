@@ -5,8 +5,6 @@ import (
 )
 
 func TestClient_ServerVersion(t *testing.T) {
-	SetDebug(true)
-
 	adbClient, err := NewClient()
 	if err != nil {
 		t.Fatal(err)
@@ -21,8 +19,6 @@ func TestClient_ServerVersion(t *testing.T) {
 }
 
 func TestClient_DeviceSerialList(t *testing.T) {
-	SetDebug(true)
-
 	adbClient, err := NewClient()
 	if err != nil {
 		t.Fatal(err)
@@ -39,8 +35,6 @@ func TestClient_DeviceSerialList(t *testing.T) {
 }
 
 func TestClient_DeviceList(t *testing.T) {
-	SetDebug(true)
-
 	adbClient, err := NewClient()
 	if err != nil {
 		t.Fatal(err)
@@ -57,8 +51,6 @@ func TestClient_DeviceList(t *testing.T) {
 }
 
 func TestClient_ForwardList(t *testing.T) {
-	SetDebug(true)
-
 	adbClient, err := NewClient()
 	if err != nil {
 		t.Fatal(err)
@@ -75,8 +67,6 @@ func TestClient_ForwardList(t *testing.T) {
 }
 
 func TestClient_ForwardKillAll(t *testing.T) {
-	SetDebug(true)
-
 	adbClient, err := NewClient()
 	if err != nil {
 		t.Fatal(err)
@@ -94,8 +84,6 @@ func TestClient_Connect(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	SetDebug(true)
-
 	err = adbClient.Connect("192.168.1.28")
 	if err != nil {
 		t.Fatal(err)
@@ -107,8 +95,6 @@ func TestClient_Disconnect(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	SetDebug(true)
 
 	err = adbClient.Disconnect("192.168.1.28")
 	if err != nil {
@@ -122,8 +108,6 @@ func TestClient_DisconnectAll(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	SetDebug(true)
-
 	err = adbClient.DisconnectAll()
 	if err != nil {
 		t.Fatal(err)
@@ -131,8 +115,6 @@ func TestClient_DisconnectAll(t *testing.T) {
 }
 
 func TestClient_KillServer(t *testing.T) {
-	SetDebug(true)
-
 	adbClient, err := NewClient()
 	if err != nil {
 		t.Fatal(err)
