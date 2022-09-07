@@ -3,7 +3,7 @@ ADB Client in pure Golang.
 
 ## Installation
 ```shell script
-go get github.com/electricbubble/gadb
+go get github.com/mgb/gadb
 ```
 
 ## Example
@@ -11,7 +11,7 @@ go get github.com/electricbubble/gadb
 package main
 
 import (
-	"github.com/electricbubble/gadb"
+	"github.com/mgb/gadb"
 	"log"
 	"os"
 	"strings"

@@ -20,7 +20,7 @@ func (info DeviceFileInfo) IsDir() bool {
 	return (info.Mode & (1 << 14)) == (1 << 14)
 }
 
-const DefaultFileMode = os.FileMode(0664)
+const DefaultFileMode = os.FileMode(0o664)
 
 type DeviceState string
 
