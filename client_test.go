@@ -4,123 +4,129 @@ import (
 	"testing"
 )
 
-func TestClient_ServerVersion(t *testing.T) {
-	adbClient, err := NewClient()
+func TestClient_Version(t *testing.T) {
+	c, err := NewClient()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	adbServerVersion, err := adbClient.ServerVersion()
+	v, err := c.Version()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	t.Log(adbServerVersion)
+	t.Log(v)
 }
 
-func TestClient_DeviceSerialList(t *testing.T) {
-	adbClient, err := NewClient()
+func TestClient_SerialList(t *testing.T) {
+	c, err := NewClient()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	serials, err := adbClient.DeviceSerialList()
+	serials, err := c.SerialList()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for i := range serials {
-		t.Log(serials[i])
+	for _, s := range serials {
+		t.Log(s)
 	}
 }
 
-func TestClient_DeviceList(t *testing.T) {
-	adbClient, err := NewClient()
+func TestClient_List(t *testing.T) {
+	c, err := NewClient()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	devices, err := adbClient.DeviceList()
+	devices, err := c.List()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for i := range devices {
-		t.Log(devices[i].serial, devices[i].DeviceInfo())
+	for _, d := range devices {
+		t.Log(d.serial, d.DeviceInfo())
 	}
 }
 
 func TestClient_ForwardList(t *testing.T) {
-	adbClient, err := NewClient()
+	c, err := NewClient()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	deviceForwardList, err := adbClient.ForwardList()
+	deviceForwardList, err := c.ForwardList()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for i := range deviceForwardList {
-		t.Log(deviceForwardList[i])
+	for _, d := range deviceForwardList {
+		t.Log(d)
 	}
 }
 
 func TestClient_ForwardKillAll(t *testing.T) {
-	adbClient, err := NewClient()
+	c, err := NewClient()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = adbClient.ForwardKillAll()
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestClient_Connect(t *testing.T) {
-	adbClient, err := NewClient()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = adbClient.Connect("192.168.1.28")
+	err = c.ForwardKillAll()
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
-func TestClient_Disconnect(t *testing.T) {
-	adbClient, err := NewClient()
+func TestClient_ConnectHost(t *testing.T) {
+	t.Skip("Requires manual setup of a host to connect to")
+
+	c, err := NewClient()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = adbClient.Disconnect("192.168.1.28")
+	err = c.ConnectHost("192.168.1.28")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestClient_DisconnectHost(t *testing.T) {
+	t.Skip("Requires manual setup of a host to connect to")
+
+	c, err := NewClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = c.DisconnectHost("192.168.1.28")
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestClient_DisconnectAll(t *testing.T) {
-	adbClient, err := NewClient()
+	c, err := NewClient()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = adbClient.DisconnectAll()
+	err = c.DisconnectAll()
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestClient_KillServer(t *testing.T) {
-	adbClient, err := NewClient()
+	t.Skip("Killing server makes all other unit test fail, so skip it")
+
+	c, err := NewClient()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = adbClient.KillServer()
+	err = c.KillServer()
 	if err != nil {
 		t.Fatal(err)
 	}

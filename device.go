@@ -10,22 +10,8 @@ import (
 )
 
 const (
-	dirBit          = 1 << 14
 	defaultFileMode = os.FileMode(0o664)
 )
-
-// DeviceFileInfo is the information of a file on the device
-type DeviceFileInfo struct {
-	Name         string
-	Mode         os.FileMode
-	Size         uint32
-	LastModified time.Time
-}
-
-// IsDir returns true if the file is a directory
-func (info DeviceFileInfo) IsDir() bool {
-	return info.Mode&dirBit != 0
-}
 
 // DeviceState is the state of the device
 type DeviceState string
@@ -132,8 +118,7 @@ func (d Device) Forward(localPort, remotePort int, noRebind ...bool) error {
 		command = fmt.Sprintf("host-serial:%s:forward:%s;%s", d.serial, local, remote)
 	}
 
-	_, err := d.adbClient.executeCommand(command, true)
-	return err
+	return d.adbClient.executeCommandWithoutResponse(command)
 }
 
 // ForwardList returns the list of forwards on the device
@@ -154,9 +139,13 @@ func (d Device) ForwardList() ([]DeviceForward, error) {
 
 // ForwardKill kills a forward on the device
 func (d Device) ForwardKill(localPort int) error {
-	local := fmt.Sprintf("tcp:%d", localPort)
-	_, err := d.adbClient.executeCommand(fmt.Sprintf("host-serial:%s:killforward:%s", d.serial, local), true)
-	return err
+	return d.adbClient.executeCommandWithoutResponse(
+		fmt.Sprintf("host-serial:%s:killforward:%s:%d",
+			d.serial,
+			"tcp",
+			localPort,
+		),
+	)
 }
 
 // RunShellCommand runs a shell command on the device
@@ -243,7 +232,7 @@ func (d Device) executeCommand(command string, onlyVerifyResponse ...bool) ([]by
 }
 
 // List returns the list of files in the directory
-func (d Device) List(remotePath string) ([]DeviceFileInfo, error) {
+func (d Device) List(remotePath string) ([]os.FileInfo, error) {
 	tp, err := d.createDeviceTransport()
 	if err != nil {
 		return nil, err
@@ -261,13 +250,13 @@ func (d Device) List(remotePath string) ([]DeviceFileInfo, error) {
 		return nil, err
 	}
 
-	var devFileInfos []DeviceFileInfo
+	var devFileInfos []os.FileInfo
 	for {
-		entry, err := sync.ReadDirectoryEntry()
+		entry, ok, err := sync.ReadDirectoryEntry()
 		if err != nil {
 			return nil, err
 		}
-		if entry == (DeviceFileInfo{}) {
+		if !ok {
 			break
 		}
 
@@ -277,8 +266,14 @@ func (d Device) List(remotePath string) ([]DeviceFileInfo, error) {
 	return devFileInfos, nil
 }
 
+// FileWithStat represents a reader that also can call Stat() on
+type FileWithStat interface {
+	Stat() (os.FileInfo, error)
+	io.Reader
+}
+
 // PushFile pushes a file to the device
-func (d Device) PushFile(local *os.File, remotePath string, modification ...time.Time) error {
+func (d Device) PushFile(local FileWithStat, remotePath string, modification ...time.Time) error {
 	if len(modification) == 0 {
 		stat, err := local.Stat()
 		if err != nil {

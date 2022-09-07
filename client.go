@@ -21,6 +21,13 @@ type Client struct {
 	port int
 }
 
+// ErrWarnings represents a list of warnings
+type ErrWarnings []string
+
+func (e ErrWarnings) Error() string {
+	return "warnings: " + strings.Join(e, ", ")
+}
+
 // NewClient creates a new adb client
 func NewClient() (Client, error) {
 	return NewClientWithHost("localhost")
@@ -119,7 +126,7 @@ func (c Client) List() ([]Device, error) {
 }
 
 // ForwardList returns a list of all forward connections
-func (c Client) ForwardList() (deviceForward []DeviceForward, err error) {
+func (c Client) ForwardList() ([]DeviceForward, error) {
 	resp, err := c.executeCommand("host:list-forward")
 	if err != nil {
 		return nil, err
@@ -141,8 +148,7 @@ func (c Client) ForwardList() (deviceForward []DeviceForward, err error) {
 
 // ForwadKillAll kills all forward connections
 func (c Client) ForwardKillAll() error {
-	_, err := c.executeCommand("host:killforward-all", true)
-	return err
+	return c.executeCommandWithoutResponse("host:killforward-all")
 }
 
 // ConnectHost connects to a device via TCP/IP
@@ -217,11 +223,7 @@ func (c Client) createTransport() (tp transport, err error) {
 	return newTransport(net.JoinHostPort(c.host, fmt.Sprint(c.port)))
 }
 
-func (c Client) executeCommand(command string, onlyVerifyResponse ...bool) (string, error) {
-	if len(onlyVerifyResponse) == 0 {
-		onlyVerifyResponse = []bool{false}
-	}
-
+func (c Client) executeCommand(command string) (string, error) {
 	tp, err := c.createTransport()
 	if err != nil {
 		return "", err
@@ -238,13 +240,29 @@ func (c Client) executeCommand(command string, onlyVerifyResponse ...bool) (stri
 		return "", err
 	}
 
-	if onlyVerifyResponse[0] {
-		return "", nil
-	}
-
 	resp, err := tp.UnpackString()
 	if err != nil {
 		return "", err
 	}
 	return resp, nil
+}
+
+func (c Client) executeCommandWithoutResponse(command string) error {
+	tp, err := c.createTransport()
+	if err != nil {
+		return err
+	}
+	defer tp.Close()
+
+	err = tp.Send(command)
+	if err != nil {
+		return err
+	}
+
+	err = tp.VerifyResponse()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

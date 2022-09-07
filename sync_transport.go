@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"time"
 )
 
@@ -171,45 +172,45 @@ func (sync syncTransport) readChunk() ([]byte, error) {
 	}
 }
 
-func (sync syncTransport) ReadDirectoryEntry() (DeviceFileInfo, error) {
+func (sync syncTransport) ReadDirectoryEntry() (os.FileInfo, bool, error) {
 	status, err := sync.ReadStringN(4)
 	if err != nil {
-		return DeviceFileInfo{}, err
+		return fileInfo{}, false, err
 	}
-
 	if status == "DONE" {
-		return DeviceFileInfo{}, nil
+		return fileInfo{}, false, nil
 	}
 
-	var entry DeviceFileInfo
-	err = binary.Read(sync.sock, binary.LittleEndian, &entry.Mode)
+	var entry fileInfo
+
+	err = binary.Read(sync.sock, binary.LittleEndian, &entry.mode)
 	if err != nil {
-		return DeviceFileInfo{}, fmt.Errorf("sync transport read (mode): %w", err)
+		return fileInfo{}, false, fmt.Errorf("sync transport read (mode): %w", err)
 	}
 
-	entry.Size, err = sync.ReadUint32()
+	entry.size, err = sync.ReadUint32()
 	if err != nil {
-		return DeviceFileInfo{}, fmt.Errorf("sync transport read (size): %w", err)
+		return fileInfo{}, false, fmt.Errorf("sync transport read (size): %w", err)
 	}
 
 	lastModUnix, err := sync.ReadUint32()
 	if err != nil {
-		return DeviceFileInfo{}, fmt.Errorf("sync transport read (time): %w", err)
+		return fileInfo{}, false, fmt.Errorf("sync transport read (time): %w", err)
 	}
 
-	entry.LastModified = time.Unix(int64(lastModUnix), 0)
+	entry.modTime = time.Unix(int64(lastModUnix), 0)
 
 	fLen, err := sync.ReadUint32()
 	if err != nil {
-		return DeviceFileInfo{}, fmt.Errorf("sync transport read (file name length): %w", err)
+		return fileInfo{}, false, fmt.Errorf("sync transport read (file name length): %w", err)
 	}
 
-	entry.Name, err = sync.ReadStringN(int(fLen))
+	entry.name, err = sync.ReadStringN(int(fLen))
 	if err != nil {
-		return DeviceFileInfo{}, fmt.Errorf("sync transport read (file name): %w", err)
+		return fileInfo{}, false, fmt.Errorf("sync transport read (file name): %w", err)
 	}
 
-	return entry, nil
+	return entry, true, nil
 }
 
 func (sync syncTransport) ReadUint32() (uint32, error) {
