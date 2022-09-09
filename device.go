@@ -150,15 +150,11 @@ func (d Device) ForwardKill(localPort int) error {
 
 // RunShellCommand runs a shell command on the device
 func (d Device) RunShellCommand(cmd string, args ...string) (string, error) {
-	raw, err := d.RunShellCommandWithBytes(cmd, args...)
-	if err != nil {
-		return string(raw), err
-	}
-	return string(raw), nil
+	return d.RunShellCommand(cmd, args...)
 }
 
-// RunShellCommandWithBytes runs a shell command on the device and returns the raw bytes
-func (d Device) RunShellCommandWithBytes(cmd string, args ...string) ([]byte, error) {
+// RunShellCommandStreaming runs a shell command on the device and returns the output
+func (d Device) RunShellCommandStreaming(cmd string, args ...string) ([]byte, error) {
 	cmd = fmt.Sprintf("%s %s", cmd, strings.Join(args, " "))
 	if strings.TrimSpace(cmd) == "" {
 		return nil, errors.New("adb shell: command cannot be empty")
@@ -177,8 +173,13 @@ func (d Device) EnableAdbOverTCP(port ...int) error {
 		port = []int{AdbDaemonPort}
 	}
 
-	_, err := d.executeCommand(fmt.Sprintf("tcpip:%d", port[0]), true)
-	return err
+	r, err := d.executeCommandStreaming(fmt.Sprintf("tcpip:%d", port[0]))
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	return nil
 }
 
 func (d Device) createDeviceTransport() (transport, error) {
@@ -199,7 +200,21 @@ func (d Device) createDeviceTransport() (transport, error) {
 	return tp, nil
 }
 
-func (d Device) executeCommand(command string, onlyVerifyResponse ...bool) ([]byte, error) {
+func (d Device) executeCommand(command string) ([]byte, error) {
+	r, err := d.executeCommandStreaming(command)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+
+	b, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+func (d Device) executeCommandStreaming(command string, onlyVerifyResponse ...bool) (io.ReadCloser, error) {
 	if len(onlyVerifyResponse) == 0 {
 		onlyVerifyResponse = []bool{false}
 	}
@@ -224,11 +239,7 @@ func (d Device) executeCommand(command string, onlyVerifyResponse ...bool) ([]by
 		return nil, nil
 	}
 
-	raw, err := tp.ReadBytesAll()
-	if err != nil {
-		return raw, err
-	}
-	return raw, nil
+	return tp.sock, nil
 }
 
 // List returns the list of files in the directory

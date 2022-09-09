@@ -3,6 +3,7 @@ package gadb
 import (
 	"fmt"
 	"net"
+	"os/exec"
 	"strconv"
 	"strings"
 )
@@ -19,6 +20,20 @@ const (
 type Client struct {
 	host string
 	port int
+}
+
+// StartServer will attempt to start the adb server
+func StartServer() error {
+	adb, err := exec.LookPath("adb")
+	if err != nil {
+		return err
+	}
+
+	err = exec.Command(adb, "-L", fmt.Sprintf("tcp:localhost:%d", AdbServerPort), "start-server").Run()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // ErrWarnings represents a list of warnings
@@ -55,7 +70,7 @@ func NewClientWithHostAndPort(host string, port int) (Client, error) {
 	return c, nil
 }
 
-// ServerVersion returns the version of the adb server
+// Version returns the version of the adb server
 func (c Client) Version() (int, error) {
 	resp, err := c.executeCommand("host:version")
 	if err != nil {
@@ -146,7 +161,7 @@ func (c Client) ForwardList() ([]DeviceForward, error) {
 	return devices, nil
 }
 
-// ForwadKillAll kills all forward connections
+// ForwardKillAll kills all forward connections
 func (c Client) ForwardKillAll() error {
 	return c.executeCommandWithoutResponse("host:killforward-all")
 }
