@@ -107,12 +107,12 @@ func (t transport) Close() error {
 func (t transport) CreateSyncTransport() (syncTransport, error) {
 	err := t.Send("sync:")
 	if err != nil {
-		return syncTransport{}, err
+		return syncTransport{}, fmt.Errorf("failed to send sync command: %w", err)
 	}
 
 	err = t.VerifyResponse()
 	if err != nil {
-		return syncTransport{}, err
+		return syncTransport{}, fmt.Errorf("failed to verify sync response: %w", err)
 	}
 
 	return newSyncTransport(t.sock, t.readTimeout), nil

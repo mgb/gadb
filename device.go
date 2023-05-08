@@ -150,7 +150,11 @@ func (d Device) ForwardKill(localPort int) error {
 
 // RunShellCommand runs a shell command on the device
 func (d Device) RunShellCommand(cmd string, args ...string) (string, error) {
-	return d.RunShellCommand(cmd, args...)
+	b, err := d.RunShellCommandStreaming(cmd, args...)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
 }
 
 // RunShellCommandStreaming runs a shell command on the device and returns the output
@@ -185,17 +189,17 @@ func (d Device) EnableAdbOverTCP(port ...int) error {
 func (d Device) createDeviceTransport() (transport, error) {
 	tp, err := newTransport(fmt.Sprintf("%s:%d", d.adbClient.host, d.adbClient.port))
 	if err != nil {
-		return transport{}, err
+		return transport{}, fmt.Errorf("failed to create transport: %w", err)
 	}
 
 	err = tp.Send(fmt.Sprintf("host:transport:%s", d.serial))
 	if err != nil {
-		return transport{}, err
+		return transport{}, fmt.Errorf("failed to send transport command: %w", err)
 	}
 
 	err = tp.VerifyResponse()
 	if err != nil {
-		return transport{}, err
+		return transport{}, fmt.Errorf("failed to verify transport response: %w", err)
 	}
 	return tp, nil
 }
@@ -203,18 +207,18 @@ func (d Device) createDeviceTransport() (transport, error) {
 func (d Device) executeCommand(command string) ([]byte, error) {
 	r, err := d.executeCommandStreaming(command)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to exec command: %w", err)
 	}
 	defer r.Close()
 
 	b, err := io.ReadAll(r)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read cmd response: %w", err)
 	}
 	return b, nil
 }
 
-func (d Device) executeCommandStreaming(command string, onlyVerifyResponse ...bool) (io.ReadCloser, error) {
+func (d Device) executeCommandStreaming(command string, onlyVerifyResponse ...bool) (resp io.ReadCloser, err error) {
 	if len(onlyVerifyResponse) == 0 {
 		onlyVerifyResponse = []bool{false}
 	}
@@ -223,7 +227,12 @@ func (d Device) executeCommandStreaming(command string, onlyVerifyResponse ...bo
 	if err != nil {
 		return nil, err
 	}
-	defer tp.Close()
+	// Only close connection if we don't respond with a socket
+	defer func() {
+		if resp == nil {
+			tp.Close()
+		}
+	}()
 
 	err = tp.Send(command)
 	if err != nil {
@@ -239,33 +248,34 @@ func (d Device) executeCommandStreaming(command string, onlyVerifyResponse ...bo
 		return nil, nil
 	}
 
-	return tp.sock, nil
+	resp = tp.sock
+	return
 }
 
 // List returns the list of files in the directory
 func (d Device) List(remotePath string) ([]os.FileInfo, error) {
 	tp, err := d.createDeviceTransport()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create device transport: %w", err)
 	}
 	defer tp.Close()
 
 	sync, err := tp.CreateSyncTransport()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create sync transport: %w", err)
 	}
 	defer sync.Close()
 
 	err = sync.Send("LIST", remotePath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to send list command: %w", err)
 	}
 
 	var devFileInfos []os.FileInfo
 	for {
 		entry, ok, err := sync.ReadDirectoryEntry()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to read directory entry: %w", err)
 		}
 		if !ok {
 			break
