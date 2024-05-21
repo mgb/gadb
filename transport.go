@@ -118,6 +118,12 @@ func (t transport) CreateSyncTransport() (syncTransport, error) {
 	return newSyncTransport(t.sock, t.readTimeout), nil
 }
 
+// CreateShellTransport returns a transport useful for the shell protocol.
+func (t transport) CreateShellTransport() (sTp shellTransport, err error) {
+	sTp = newShellTransport(t.sock, t.readTimeout)
+	return
+}
+
 func _send(writer io.Writer, msg []byte) error {
 	for totalSent := 0; totalSent < len(msg); {
 		sent, err := writer.Write(msg[totalSent:])
