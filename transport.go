@@ -92,7 +92,7 @@ func (t transport) ReadStringN(size int) (string, error) {
 	return string(raw), nil
 }
 
-func (t transport) ReadBytesN(size int) ([]byte, error) {
+func (t transport) ReadBytesN(size int) (raw []byte, err error) {
 	_ = t.sock.SetReadDeadline(time.Now().Add(t.readTimeout))
 	return _readN(t.sock, size)
 }
