@@ -52,52 +52,57 @@ func TestDevice_DevicePath(t *testing.T) {
 }
 
 func TestDevice_Product(t *testing.T) {
-	c, err := NewClient()
+	adbClient, err := NewClient()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	devices, err := c.List()
+	devices, err := adbClient.List()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for _, d := range devices {
-		t.Log(d.Serial(), d.Product())
+	for i := range devices {
+		dev := devices[i]
+		product, err := dev.Product()
+		t.Log(dev.Serial(), product, err)
 	}
 }
 
 func TestDevice_Model(t *testing.T) {
-	c, err := NewClient()
+	adbClient, err := NewClient()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	devices, err := c.List()
+	devices, err := adbClient.List()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for _, d := range devices {
-		t.Log(d.Serial(), d.Model())
+	for i := range devices {
+		dev := devices[i]
+		model, err := dev.Model()
+		t.Log(dev.Serial(), model, err)
 	}
 }
 
 func TestDevice_Usb(t *testing.T) {
-	c, err := NewClient()
+	adbClient, err := NewClient()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	devices, err := c.List()
+	devices, err := adbClient.List()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for _, d := range devices {
-		t.Log(d.Serial(), d.Usb(), d.IsUsb())
+	for i := range devices {
+		dev := devices[i]
+		usb, err := dev.Usb()
+		t.Log(dev.Serial(), usb, err)
 	}
-
 }
 
 func TestDevice_DeviceInfo(t *testing.T) {
@@ -260,6 +265,8 @@ func TestDevice_List(t *testing.T) {
 	if len(devices) == 0 {
 		t.SkipNow()
 	}
+
+	t.Log("Device:", devices[0].Serial())
 
 	// fileEntries, err := dev.List("/sdcard")
 	fileEntries, err := devices[0].List("/sdcard/Download")

@@ -128,6 +128,9 @@ func (c Client) List() ([]Device, error) {
 		mapAttrs := map[string]string{}
 		for _, field := range sliceAttrs {
 			split := strings.Split(field, ":")
+			if len(split) == 1 {
+				continue
+			}
 			key, val := split[0], split[1]
 			mapAttrs[key] = val
 		}

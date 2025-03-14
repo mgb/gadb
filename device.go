@@ -55,22 +55,39 @@ type Device struct {
 }
 
 // Product returns the product name of the device
-func (d Device) Product() string {
-	return d.attrs["product"]
+func (d Device) Product() (string, error) {
+	if d.HasAttribute("product") {
+		return d.attrs["product"], nil
+	}
+	return "", errors.New("does not have attribute: product")
 }
 
 // Model returns the model name of the device
-func (d Device) Model() string {
-	return d.attrs["model"]
+func (d Device) Model() (string, error) {
+	if d.HasAttribute("model") {
+		return d.attrs["model"], nil
+	}
+	return "", errors.New("does not have attribute: model")
 }
 
 // Usb returns the usb information of the device
-func (d Device) Usb() string {
-	return d.attrs["usb"]
+func (d Device) Usb() (string, error) {
+	if d.HasAttribute("usb") {
+		return d.attrs["usb"], nil
+	}
+	return "", errors.New("does not have attribute: usb")
 }
 
-func (d Device) transportId() string {
-	return d.attrs["transport_id"]
+func (d Device) HasAttribute(key string) bool {
+	_, ok := d.attrs[key]
+	return ok
+}
+
+func (d Device) transportId() (string, error) {
+	if d.HasAttribute("transport_id") {
+		return d.attrs["transport_id"], nil
+	}
+	return "", errors.New("does not have attribute: transport_id")
 }
 
 // DeviceInfo returns the information of the device
@@ -84,8 +101,13 @@ func (d Device) Serial() string {
 }
 
 // IsUsb returns true if the device is connected via USB
-func (d Device) IsUsb() bool {
-	return d.Usb() != ""
+func (d Device) IsUsb() (bool, error) {
+	usb, err := d.Usb()
+	if err != nil {
+		return false, err
+	}
+
+	return usb != "", nil
 }
 
 // State returns the state of the device

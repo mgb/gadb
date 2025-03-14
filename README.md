@@ -21,7 +21,7 @@ func main() {
 	adbClient, err := gadb.NewClient()
 	checkErr(err, "fail to connect adb server")
 
-	devices, err := adbClient.DeviceList()
+	devices, err := adbClient.List()
 	checkErr(err)
 
 	if len(devices) == 0 {
