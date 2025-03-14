@@ -266,9 +266,6 @@ func TestDevice_List(t *testing.T) {
 		t.SkipNow()
 	}
 
-	t.Log("Device:", devices[0].Serial())
-
-	// fileEntries, err := dev.List("/sdcard")
 	fileEntries, err := devices[0].List("/sdcard/Download")
 	if err != nil {
 		t.Fatal(err)

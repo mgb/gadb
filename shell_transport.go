@@ -45,8 +45,6 @@ func (s *shellTransport) Send(command shellMessageType, data []byte) (err error)
 	if _, err := msg.Write(data); err != nil {
 		return fmt.Errorf("shell transport write: %w", err)
 	}
-
-	debugLog(fmt.Sprintf("--> %v", msg.Bytes()))
 	return _send(s.sock, msg.Bytes())
 }
 
